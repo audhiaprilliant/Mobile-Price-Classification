@@ -1,0 +1,158 @@
+---
+title: "Mobile Price Classification"
+author: "Audhi Aprilliant"
+date: "26 Desember 2018"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Context
+
+Bob has started his own mobile company. He wants to give tough fight to big companies like Apple,Samsung etc.
+He does not know how to estimate price of mobiles his company creates. In this competitive mobile phone market you cannot simply assume things. To solve this problem he collects sales data of mobile phones of various companies.
+Bob wants to find out some relation between features of a mobile phone(eg:- RAM,Internal Memory etc) and its selling price. But he is not so good at Machine Learning. So he needs your help to solve this problem.
+In this problem you do not have to predict actual price but a price range indicating how high the price is
+
+id: ID  
+battery_power: Total energy a battery can store in one time measured in mAh  
+blue: Has bluetooth or not  
+clock_speed: speed at which microprocessor executes instructions  
+dual_sim: Has dual sim support or not  
+fc: Front Camera mega pixels  
+four_g: Has 4G or not  
+int_memory: Internal Memory in Gigabytes  
+m_dep: Mobile Depth in cm  
+mobile_wt: Weight of mobile phone  
+n_cores: Number of cores of processor  
+pc: Primary Camera mega pixels  
+px_height: Pixel Resolution Height  
+px_width: Pixel Resolution Width  
+ram: Random Access Memory in Megabytes  
+sc_h: Screen Height of mobile in cm  
+sc_w: Screen Width of mobile in cm  
+talk_time: longest time that a single battery charge will last when you are  
+three_g: Has 3G or not  
+touch_screen: Has touch screen or not  
+wifi: Has wifi or not  
+
+```{r cars}
+data = read.csv('D:/Audhi Aprilliant/IPB Works/Statistics Department/5th Semester/Quantitative Methods/Final Work/Mobile Price Classification/train.csv', header = TRUE, sep = ',')
+str(data)
+```
+
+### Target Variable 'Price Range'
+```{r}
+table(data$price_range)
+data$price_range = factor(data$price_range, levels = c('0','1','2','3'),
+                          labels = c('Very Cheap','Cheap','Expensive','Very Expensive'))
+price_range = data$price_range
+round(prop.table(table(data$price_range))*100, digits = 1)
+data = data[-21]
+```
+
+### Handling Categorical Variables
+```{r}
+colnames(data)[colnames(data)=='blue'] = 'blue.1'
+data$blue.0 = NA
+data$blue.0 = data$blue.1 - 1
+data$blue.0 = abs(data$blue.0)
+
+colnames(data)[colnames(data)=='dual_sim'] = 'dual_sim.1'
+data$dual_sim.0 = NA
+data$dual_sim.0 = data$dual_sim.1 - 1
+data$dual_sim.0 = abs(data$dual_sim.0)
+
+colnames(data)[colnames(data)=='four_g'] = 'four_g.1'
+data$four_g.0 = NA
+data$four_g.0 = data$four_g.1 - 1
+data$four_g.0 = abs(data$four_g.0)
+
+colnames(data)[colnames(data)=='three_g'] = 'three_g.1'
+data$three_g.0 = NA
+data$three_g.0 = data$three_g.1 - 1
+data$three_g.0 = abs(data$three_g.0)
+
+colnames(data)[colnames(data)=='touch_screen'] = 'touch_screen.1'
+data$touch_screen.0 = NA
+data$touch_screen.0 = data$touch_screen.1 - 1
+data$touch_screen.0 = abs(data$touch_screen.0)
+
+colnames(data)[colnames(data)=='wifi'] = 'wifi.1'
+data$wifi.0 = NA
+data$wifi.0 = data$wifi.1 - 1
+data$wifi.0 = abs(data$wifi.0)
+head(data)
+```
+
+### Combining Independent Variables with Target Variable
+```{r}
+data = cbind(data, price_range)
+head(data)
+```
+
+### Using caret and e1071 Packages
+```{r}
+library(caret)
+library(e1071)
+```
+
+### Partitioning the Data into Training and Validation Data
+```{r}
+str(data)
+set.seed(100)
+index = createDataPartition(data$price_range, p = 0.7, list = FALSE)
+train = data[index,]
+validation = data[-index,]
+```
+
+### Exploring Data
+```{r}
+dim(train)
+dim(validation)
+head(train)
+head(validation)
+```
+
+### Setting Levels for Both Training and Validation Data
+```{r}
+levels(train$price_range) = make.names(levels(factor(train$price_range)))
+levels(validation$price_range) = make.names(levels(factor(validation$price_range)))
+```
+
+### Setting Up Train Controls
+```{r}
+repeats = 3
+numbers = 10
+tunel = 10
+
+set.seed(1234)
+x = trainControl(method = 'repeatedcv',
+                 number = numbers,
+                 repeats = repeats,
+                 classProbs = TRUE)
+                 
+knn_fit = train(price_range~.,
+               data = train,
+               method = 'knn',
+               preProcess = c('center','scale'),
+               trControl = x,
+               tuneLength = 10)
+knn_fit
+plot(knn_fit)
+```
+
+### Making Predictions
+```{r}
+valid_pred = predict(knn_fit, validation)
+```
+
+### Storing Model Performance Scores
+```{r}
+confusionMatrix(valid_pred, validation$price_range)
+
+```
